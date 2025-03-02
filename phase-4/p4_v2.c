@@ -5,6 +5,7 @@
 #define MAXIMUM_KEYS ((DEGREE * 2) - 1)
 #define MAXIMUM_CHILDREN ((DEGREE * 2))
 #define MID ((MAXIMUM_KEYS) / 2)
+#define MINIMUM_KEYS (DEGREE - 1)
 
 
 typedef struct BTreeNode {
@@ -66,7 +67,6 @@ int findChildIndex(BTreeNode *node, int key) {
 		return right + 1;
 	}
 
-
 	while(left <= right) {
 		mid = left + ((right - left)  / 2 );
 
@@ -84,7 +84,6 @@ int findChildIndex(BTreeNode *node, int key) {
 void promote_to_parent(BTreeNode** root, BTreeNode* node, int promotedKey, BTreeNode *promoted) {
 	if(!node->parent) {
 		*root = createBTreeNode(0); // init new parent
-		printf("promoted_k %i\n", promotedKey);
 		(*root)->keys[0] = promotedKey;
 		(*root)->children[0] = node;
 		(*root)->children[1] = promoted;
@@ -93,29 +92,8 @@ void promote_to_parent(BTreeNode** root, BTreeNode* node, int promotedKey, BTree
 		promoted->parent = *root;
 
 	} else {
-		printf("masuk\n");
 		BTreeNode *parent = node->parent;
-		/*printf("before shifting~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*	traverseBTree(*root, 0);*/
-		/*printf("~~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*printf("before shifting promoted~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*	traverseBTree(promoted, 0);*/
-		/*printf("~~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*printf("parent of promoted~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*	traverseBTree(promoted->parent, 0);*/
-		/*printf("~~~~~~~~~~~~~~~~~~~~~\n");*/
-		/**/
-		/*printf("parent of node~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*	traverseBTree(node->parent, 0);*/
-		/*printf("~~~~~~~~~~~~~~~~~~~~~\n");*/
-		/*printf("Before shifting parent keys: %i \n", parent->numKeys);*/
-		/*for (int k = 0; k < parent->numKeys; k++) {*/
-		/*    printf("%d ", parent->keys[k]);*/
-		/*}*/
-		/*printf("Parent children before shifting: ");*/
-		/*for (int k = 0; k < parent->numKeys+1; k++) {*/
-		/*    printf("%p ", (void*)parent->children[k]);*/
-		/*}*/
+
 		int i = parent->numKeys;
 		while (i > 0 && parent->keys[i - 1] > promotedKey) {
 		    parent->keys[i] = parent->keys[i - 1];
@@ -125,35 +103,29 @@ void promote_to_parent(BTreeNode** root, BTreeNode* node, int promotedKey, BTree
 
 		parent->keys[i] = promotedKey;
 		parent->children[i + 1] = promoted;
+		promoted->parent = parent;
 		parent->numKeys++;
 
 
 		if(parent->numKeys >= MAXIMUM_KEYS) {    
 		    BTreeNode *second_half = createBTreeNode(0);
-		    int midIndex = parent->numKeys / 2;
 		    
-		    // Save the middle key that will be promoted
-		    int new_promoted = parent->keys[midIndex];
+		    int new_promoted = parent->keys[MID];
 		    
-		    // Set up second_half children and keys
-		    second_half->children[0] = parent->children[midIndex + 1];
+		    second_half->children[0] = parent->children[MID + 1];
 		    second_half->children[0]->parent = second_half;
 		    
-		    for (int j = midIndex + 1; j < parent->numKeys; j++) {
-			second_half->keys[j - (midIndex + 1)] = parent->keys[j];
-			second_half->children[j - midIndex] = parent->children[j + 1];
-		        second_half->children[j - midIndex]->parent = second_half;
+		    for (int j = MID + 1; j < parent->numKeys; j++) {
+			second_half->keys[j - (MID + 1)] = parent->keys[j];
+			second_half->children[j - MID] = parent->children[j + 1];
+		        second_half->children[j - MID]->parent = second_half;
 		    }
 		    
-		    // Set the numKeys correctly for both halves
-		    second_half->numKeys = parent->numKeys - (midIndex + 1);
-		    parent->numKeys = midIndex;
+		    second_half->numKeys = parent->numKeys - (MID + 1);
+		    parent->numKeys = MID;
 		    
-		    // Set up the promoted node with the middle key
 		    second_half->parent = parent->parent;
 			
-		    
-		    // Promote to parent
 		    promote_to_parent(root, parent, new_promoted, second_half);
 		}
 	}
@@ -178,30 +150,22 @@ void insert(BTreeNode **root, BTreeNode*node, int key, void *value) {
 		node->numKeys++;
 
 		if(node->numKeys >= MAXIMUM_KEYS) {
-			promoted_pointer = createBTreeNode(1); // Create new leaf node
+			promoted_pointer = createBTreeNode(1); 
 
-			int midIndex = node->numKeys / 2;
-			int promoted_val = node->keys[midIndex]; // Get the middle key (stays in leaf)
+			int promoted_val = node->keys[MID]; 
 
-			// Move right half to new leaf node
-			for (int k = midIndex; k < node->numKeys; k++) { // Start from midIndex (not +1!)
-			    promoted_pointer->keys[k - midIndex] = node->keys[k];
-			    promoted_pointer->values[k - midIndex] = node->values[k];
+			for (int k = MID; k < node->numKeys; k++) { 
+			    promoted_pointer->keys[k - MID] = node->keys[k];
+			    promoted_pointer->values[k - MID] = node->values[k];
 			}
 
-			promoted_pointer->numKeys = node->numKeys - midIndex; // Right half keys count
-			node->numKeys = midIndex; // Left half keys count
+			promoted_pointer->numKeys = node->numKeys - MID;
+			node->numKeys = MID; 
 
-			// 🌟 Update leaf links for B+Tree
-
-			// Set parent
 			promoted_pointer->parent = node->parent;
-
 
 			promote_to_parent(root, node, promoted_val, promoted_pointer);
 			return;
-
-			// promote to parent -> parent empty, parent, full
 
 		}
 
@@ -210,7 +174,6 @@ void insert(BTreeNode **root, BTreeNode*node, int key, void *value) {
 
 }
 
-int expected = 0;
 void traverseBTree(BTreeNode *node, int depth) {
 	if (node == NULL) return;
 
@@ -218,11 +181,6 @@ void traverseBTree(BTreeNode *node, int depth) {
 	if(node->isLeaf) {
 		for (int i = 0; i < node->numKeys; i++) {
 			printf("Depth %d: index = %d | key %i | Value: %i\n", depth, i, node->keys[i], * (int *) node->values[i]);
-			if(* (int *) node->values[i] != expected) exit(0);
-			if(node->keys[i] != expected) exit(0);
-			if(expected == 2499) {
-				expected += 2; 
-			} else expected++;
 
 		}
 
@@ -307,11 +265,276 @@ void printBTree(BTreeNode *node, int depth) {
     }
 }
 
+void debugParentPointers(BTreeNode *node, int depth); 
+void destroy(BTreeNode **root, BTreeNode *node, int key) {
+	// internal node
+	if(!node->isLeaf) {
+		int childIndex = findChildIndex(node, key);
+		destroy(root, node->children[childIndex], key);
+
+		if(childIndex > 0 && key == node->keys[childIndex-1]) {
+			node->keys[childIndex-1] = node->children[childIndex]->keys[0];
+		}
+		BTreeNode *destroyed_child = node->children[childIndex];
+
+		if (destroyed_child ->numKeys < MINIMUM_KEYS) {
+			// we try to borrow from right and then from left
+			// if right and left has minimum keys too we try to merge from right to left
+			int right = childIndex + 1;
+			// if child index is not foremost right
+			if(childIndex < node->numKeys &&  node->children[right]->numKeys > MINIMUM_KEYS ) {
+				BTreeNode *right_child = node->children[right];
+
+				if(!right_child->isLeaf) { // if children is not leaf, we shift the grandchildren of children 
+					//
+					// claim right children to borrower
+					destroyed_child->children[destroyed_child->numKeys+1] = right_child->children[0];
+					destroyed_child->children[destroyed_child->numKeys+1]->parent = destroyed_child;
+					// claim parent key to borrower
+					destroyed_child->keys[destroyed_child->numKeys] = node->keys[childIndex];
+					// claim first key of right as the new separator
+					node->keys[childIndex] = right_child->keys[0];
+
+					// shift right children
+					int i = 1;
+
+					while (i < right_child->numKeys) {
+						right_child->keys[i - 1] = right_child->keys[i];
+						right_child->children[i-1] = right_child->children[i];
+						i++;
+					}
+					right_child->children[i - 1] = right_child->children[i];
+					printf("\n===========entered1============\n");
+				} else {
+					// claim right values to borrower
+					destroyed_child->values[destroyed_child->numKeys] = right_child->values[0];
+					// in this case right_child->keys[0] == node->keys[childIndex]
+					destroyed_child->keys[destroyed_child->numKeys] = right_child->keys[0];
+					destroyed_child->children[destroyed_child->numKeys+1]->parent = destroyed_child;
+					// claim first key of right as the new separator
+					node->keys[childIndex] = right_child->keys[1];
+
+					// shift right values
+					int i = 1;
+
+					while (i < right_child->numKeys) {
+						right_child->keys[i - 1] = right_child->keys[i];
+						right_child->values[i-1] = right_child->values[i];
+						i++;
+					}
+					printf("\n===========entered2============\n");
+				}
+				right_child->numKeys--;
+				destroyed_child->numKeys++;
+
+			}else if( childIndex > 0 &&  node->children[childIndex - 1]->numKeys > MINIMUM_KEYS ) {
+				BTreeNode *left_child = node->children[childIndex - 1];
+				int i = destroyed_child->numKeys;
+				if(!left_child->isLeaf) { // if children is not leaf, we shift the grandchildren of children 
+					//
+					// shift destroyed to right to make space
+					// shift keys and children to right to make space
+				printf("\n===========entered3 before act============\n");
+					destroyed_child->children[i+1] = destroyed_child->children[i];
+					while (i > 0) {
+						destroyed_child->keys[i] = destroyed_child->keys[i-1];
+						destroyed_child->children[i] = destroyed_child->children[i-1];
+						i--;
+					}
+					// claim left
+					destroyed_child->keys[0] = node->keys[childIndex-1];
+					destroyed_child->children[0] = left_child->children[left_child->numKeys];
+					destroyed_child->children[0]->parent = destroyed_child;
+					//claim foremost right children of left
+					node->keys[childIndex-1] = left_child->keys[left_child->numKeys -1];
+					printf("\n===========entered3============\n");
+
+				} else {
+					while (i > 0) {
+						destroyed_child->keys[i] = destroyed_child->keys[i-1];
+						destroyed_child->values[i] = destroyed_child->values[i-1];
+						i--;
+					}
+					destroyed_child->keys[0] = left_child->keys[left_child->numKeys-1];
+					destroyed_child->values[0] = left_child->values[left_child->numKeys-1];
+					node->keys[childIndex-1] = destroyed_child->keys[0];
+					printf("\n===========entered4============\n");
+				}
+				left_child->numKeys--;
+				destroyed_child->numKeys++;
+				printf("\n=========after34===========\n");
+			// merge with right if right is minimum
+			} else if (childIndex < node->numKeys ) {
+				BTreeNode *right_child = node->children[right];
+
+				if(!right_child->isLeaf) {
+					printf("\n===========before5============\n");
+					debugParentPointers(*root, 0);
+					printf("\n===========still on before5 parent node: %p============\n", node);
+					destroyed_child->keys[destroyed_child->numKeys] = node->keys[childIndex];
+					for(int i = 0; i < right_child->numKeys; i++) {
+						destroyed_child->keys[destroyed_child->numKeys + 1 + i] = right_child->keys[i];
+						destroyed_child->children[destroyed_child->numKeys + 1 + i] = right_child->children[i]; // this stops at destroyed_child->num
+						right_child->children[i]->parent = destroyed_child; //update parent on merge
+					}
+					destroyed_child->children[destroyed_child->numKeys + right_child->numKeys + 1] = right_child->children[right_child->numKeys];
+					right_child->children[right_child->numKeys]->parent = destroyed_child; //update parent on merge
+					destroyed_child->numKeys += right_child->numKeys + 1;
+
+				} else {
+					printf("\n===========be4 entered6============\n");
+					for(int i = 0; i < right_child->numKeys; i++) {
+						destroyed_child->keys[destroyed_child->numKeys + i] = right_child->keys[i];
+						destroyed_child->values[destroyed_child->numKeys + i] = right_child->values[i];
+					}
+					destroyed_child->numKeys += right_child->numKeys;
+					printf("\n===========entered6============\n");
+
+				}
+
+				for(int i = childIndex; i < node->numKeys - 1; i++) {
+					node->keys[i] = node->keys[i+1];
+					node->children[i+1] = node->children[i+2];
+				}
+				node->numKeys--;
+				printf("\n===========entered5============\n");
+				debugParentPointers(*root, 0);
+				printf("\n===========still on after5============\n");
+				printf("\n=========after56===========\n");
+
+				// shift keys and children after destroyed
+				// add free malloc in right child later
+
+
+			} else if (childIndex > 0 ){
+				BTreeNode *left_child = node->children[childIndex - 1];
+
+				if(!left_child->isLeaf) {
+					left_child->keys[left_child->numKeys] = node->keys[childIndex-1];
+					printf("\n===========b4 entered7============\n");
+					printf("\n===========b4 entered7============\n");
+					for(int i = 0; i < destroyed_child->numKeys; i++) {
+						left_child->keys[left_child->numKeys + 1 + i] = destroyed_child->keys[i];
+						left_child->children[left_child->numKeys + 1 + i] = destroyed_child->children[i]; // this stops at destroyed_child->num
+						destroyed_child->children[i]->parent = left_child; //update parent on merge
+					}
+					left_child->children[destroyed_child->numKeys + left_child->numKeys + 1] = destroyed_child->children[destroyed_child->numKeys];
+					destroyed_child->children[destroyed_child->numKeys]->parent = left_child; //update parent on merge
+					left_child->numKeys += destroyed_child->numKeys + 1;
+					printf("\n===========entered7============\n");
+					printf("\n===========entered7============\n");
+				} else {
+					for(int i = 0; i < destroyed_child->numKeys; i++) {
+						left_child->keys[left_child->numKeys + i] = destroyed_child->keys[i];
+						left_child->values[left_child->numKeys + i] = destroyed_child->values[i];
+					}
+					left_child->numKeys += destroyed_child->numKeys ;
+					printf("\n===========entered8============\n");
+				}
+
+				for(int i = childIndex; i < node->numKeys; i++) {
+					node->keys[i-1] = node->keys[i];
+					node->children[i] = node->children[i+1];
+				}
+				node->numKeys--;
+			} 
+
+			if(!node->parent && node->numKeys == 0) {
+				node->children[0]->parent = NULL;
+				*root = node->children[0];
+					printf("\n===========entered9============\n");
+			}
+		}
+	} else {
+		int left = 0;
+		int right = node->numKeys - 1;
+		printf("\n===========entered10============\n");
+
+		if (key < node->keys[left]) {
+		    printf("Key %d not found\n", key);
+		    return;
+		}
+
+		int mid;
+
+		if (key > node->keys[right]) {
+		    printf("Key %d not found\n", key);
+		    return;
+		}
+
+
+		while(left <= right) {
+			mid = left + ((right - left)  / 2 );
+
+			if (node->keys[mid] == key) {
+				break;
+			} else if (node->keys[mid] < key) {
+				left = mid + 1;
+			} else {
+				right = mid - 1;
+			}
+		}
+		if (node->keys[mid] == key) {
+			printf("\n traverse before modif\n");
+			printf("\n traverse before modif\n");
+			int i = mid;
+			while(i < node->numKeys-1) {
+				node->keys[i] = node->keys[i+1];
+				node->values[i] = node->values[i+1];
+				i++;
+
+			}
+			node->numKeys--;
+			if(mid == 0) {
+				// need to update parent key
+				// BUGGY ISSUE
+				// Find which index in parent's children array points to this node
+				BTreeNode *parent = node->parent;
+				printf("\n before fixing %i, pointer is %p\n", key, parent);
+				traverseBTree(*root, 0);
+				printf("\n b4 fixing %i, pointer is %p\n", key, parent);
+				while (parent) {
+					int childIdx = findChildIndex(parent, node->keys[mid]);
+					printf("\n traverse for %i, pointer is %p\n", key, parent);
+					traverseBTree(parent, 0);
+					if(childIdx > 0) {
+						parent->keys[childIdx-1] = node->keys[0];
+						break;
+					}
+					parent = parent->parent;
+					printf("\n after fixing %i, pointer is %p\n", key, parent);
+					traverseBTree(*root, 0);
+					printf("\n after fixing %i, pointer is %p\n", key, parent);
+				}
+
+				// Now update the appropriate key in the parent
+			}
+			return;
+		}
+
+
+		printf("Key %d not found, mid: %i\n", key, mid);
+
+	}
+}
+void debugParentPointers(BTreeNode *node, int depth) {
+    if (!node) return;
+
+    printf("Depth %d: Node at %p, Parent at %p, children num: %i\n", depth, (void *)node, (void *)node->parent, node->numKeys + 1);
+    
+if (!node->isLeaf) {  
+        for (int i = 0; i <= node->numKeys; i++) {
+            if (node->children[i] != NULL) {
+                debugParentPointers(node->children[i], depth + 1);
+            }
+        }
+    }
+}
 int main () {
 	BTreeNode *root2 = createBTreeNode(1);
 
 	int l = 0;
-	int r = 5000;
+	int r = 50;
 	while (l < r) {
 		int *val = malloc(sizeof(int));
 		int *vval = malloc(sizeof(int));
@@ -327,12 +550,30 @@ int main () {
 		l++;
 		r--;
 	}
-	/*printBTree(root2, 0);*/
+	debugParentPointers(root2, 0);
+	int *val = malloc(sizeof(int));
+	*val = 25;
+	insert(&root2, root2, (*val), val);
+	printf("=====after last insertion====");
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 3);
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 48);
+	destroy(&root2, root2, 49);
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 12);
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 13);
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 14);
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 3);
+	destroy(&root2, root2, 18);
+	debugParentPointers(root2, 0);
+	destroy(&root2, root2, 3);
+	printf("\nexpected leggo?\n");
 	traverseBTree(root2, 0);
 	printf("\nexpected leggo\n");
-	for(int i = -2 ; i <= 5002; i++) {
-		get(root2, i);
-	}
 	/*get(root2, 2500);*/
 	/*get(root2, 0);*/
 	/*get(root2, 2499);*/
