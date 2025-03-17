@@ -7,38 +7,7 @@
 #define MAXIMUM_CHILDREN ((DEGREE * 2))
 #define MID ((MAXIMUM_KEYS) / 2)
 #define MINIMUM_KEYS (DEGREE - 1)
-#define MAGIC_NUMBER 0x50414E53514C  // "PANSQL" in hex
-#define VERSION 1
-#define PAGE_SIZE 4096
-#define DB_FILENAME "db.pansql"
 
-typedef struct {
-    uint64_t magic;     // Magic number (8 bytes)
-    uint32_t version;   // Schema version (4 bytes)
-    uint32_t page_size; // Page size (4 bytes)
-    uint32_t root_page; // Root page index (4 bytes)
-} DBHeader;
-
-typedef struct BTreeNode {
-	int numKeys;
-	int *keys;
-	void **values;
-	struct BTreeNode **children;
-	int isLeaf;
-	struct BTreeNode *next;
-	struct BTreeNode *parent;
-} BTreeNode;
-
-typedef struct BTree {
-	BTreeNode *root;
-} BTree;
-
-void initialize_db(FILE *file) {
-    uint64_t magic = MAGIC_NUMBER;
-    fwrite(&magic, sizeof(magic), 1, file);
-    fflush(file);
-    printf("Database initialized with magic number: 0x%lX\n", MAGIC_NUMBER);
-}
 
 void traverseBTree(BTreeNode *node, int depth) ;
 BTreeNode *createBTreeNode(int isLeaf) {
@@ -69,7 +38,6 @@ BTreeNode *createBTreeNode(int isLeaf) {
 
 	return node;
 }
-
 
 int findChildIndex(BTreeNode *node, int key) {
 	int left = 0;
@@ -184,12 +152,8 @@ void insert(BTreeNode **root, BTreeNode*node, int key, void *value) {
 
 			promote_to_parent(root, node, promoted_val, promoted_pointer);
 			return;
-
 		}
-
 	}
-
-
 }
 
 void traverseBTree(BTreeNode *node, int depth) {
@@ -509,37 +473,12 @@ if (!node->isLeaf) {
         }
     }
 }
-int main () {
-	FILE *file = fopen(DB_FILENAME, "rb+");
-	if (!file) {
-		printf("Database file not found. Creating a new one...\n");
-		file = fopen(DB_FILENAME, "wb+");
-		if (!file) {
-		    perror("Failed to create database file");
-		    return 1;
-		}
-		initialize_db(file);
-	}
-	    
-	uint64_t magic;
-	fread(&magic, sizeof(magic), 1, file);
-	if (magic != MAGIC_NUMBER) {
-		printf("Invalid database file! Reinitializing...\n");
-		fclose(file);
-		file = fopen(DB_FILENAME, "wb+");
-		if (!file) {
-		    perror("Failed to recreate database file");
-		    return 1;
-		}
-		initialize_db(file);
-	} else {
-		printf("Valid database file found. Magic number: 0x%lX\n", magic);
-	}
-	// this code still has not handle duplicates yet
-	BTreeNode *root2 = createBTreeNode(1);
-
-/*	int l = 0;*/
-/*	int r = 50;*/
+/*int main () {*/
+/*	// this code still has not handle duplicates yet*/
+/*	BTreeNode *root2 = createBTreeNode(1);*/
+/**/
+/*/*	int l = 0;*/
+/*/*	int r = 50;*/
 /*	while (l < r) {*/
 /*		int *val = malloc(sizeof(int));*/
 /*		int *vval = malloc(sizeof(int));*/
@@ -555,27 +494,27 @@ int main () {
 /*		l++;*/
 /*		r--;*/
 /*	}*/
-	int values[] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 25, 28, 0, 42, 69, 71, 2, 5, 12, 31, 24};
-    for (int i = 0; i < 25; i++) {
-        int *vval = malloc(sizeof(int));
-        *vval = values[i];
-        insert(&root2, root2, *vval, vval);
-	    printf("\nTree after inserting %i:\n", values[i]);
-	    traverseBTree(root2, 0);
-    }
-
-
-    int toDelete[] = {30, 40, 50, 10, 20, 2, 120};
-    for (int i = 0; i < 7; i++) {
-        printf("\nDeleting %d...\n", toDelete[i]);
-        destroy(&root2, root2, toDelete[i]);
-	debugParentPointers(root2, 0);
-
-        traverseBTree(root2, 0);
-    }
-
-    printf("\nFinal tree structure:\n");
-    traverseBTree(root2, 0);
+/*	int values[] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 25, 28, 0, 42, 69, 71, 2, 5, 12, 31, 24};*/
+/*    for (int i = 0; i < 25; i++) {*/
+/*        int *vval = malloc(sizeof(int));*/
+/*        *vval = values[i];*/
+/*        insert(&root2, root2, *vval, vval);*/
+/*	    printf("\nTree after inserting %i:\n", values[i]);*/
+/*	    traverseBTree(root2, 0);*/
+/*    }*/
+/**/
+/**/
+/*    int toDelete[] = {30, 40, 50, 10, 20, 2, 120};*/
+/*    for (int i = 0; i < 7; i++) {*/
+/*        printf("\nDeleting %d...\n", toDelete[i]);*/
+/*        destroy(&root2, root2, toDelete[i]);*/
+/*	debugParentPointers(root2, 0);*/
+/**/
+/*        traverseBTree(root2, 0);*/
+/*    }*/
+/**/
+/*    printf("\nFinal tree structure:\n");*/
+/*    traverseBTree(root2, 0);*/
 	/*debugParentPointers(root2, 0);*/
 	/*int *val = malloc(sizeof(int));*/
 	/**val = 25;*/
@@ -612,7 +551,7 @@ int main () {
 
 
 
-}
+/*}*/
 
 
 /*void insert(BTreeNode *node, int key, void *value) {*/
