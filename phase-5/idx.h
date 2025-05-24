@@ -9,6 +9,7 @@ typedef struct BTreeNode {
 	struct BTreeNode **children;
 	int isLeaf;
 	struct BTreeNode *next;
+	struct BTreeNode *prev;
 	struct BTreeNode *parent;
 } BTreeNode;
 

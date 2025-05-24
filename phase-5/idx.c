@@ -24,11 +24,13 @@ BTreeNode *createBTreeNode(int isLeaf) {
 		node->values = (void **)malloc(sizeof(void *) * (MAXIMUM_KEYS));
 		node->children = NULL;
 		node->next = NULL;
+		node->prev = NULL;
 
 	} else {
 		node->values = NULL;
 		node->children = (BTreeNode **)malloc(sizeof(BTreeNode *) * ( MAXIMUM_CHILDREN ));
 		node->next = NULL;
+		node->prev = NULL;
 
 		for (int i = 0; i < 2 * DEGREE; i++) {
 		    node->children[i] = NULL;
@@ -149,6 +151,15 @@ void insert(BTreeNode **root, BTreeNode*node, int key, void *value) {
 			node->numKeys = MID; 
 
 			promoted_pointer->parent = node->parent;
+			promoted_pointer->next = node->next;
+			promoted_pointer->prev = node;
+
+			if (node->next != NULL) {
+			    node->next->prev = promoted_pointer;  // fix the old next leaf's prev pointer
+			}
+
+			node->next = promoted_pointer;
+
 
 			promote_to_parent(root, node, promoted_val, promoted_pointer);
 			return;
@@ -262,7 +273,6 @@ void destroy(BTreeNode **root, BTreeNode *node, int key) {
 			int right = childIndex + 1;
 			// if child index is not foremost right
 			if(childIndex < node->numKeys &&  node->children[right]->numKeys > MINIMUM_KEYS ) {
-			printf("selamat 4?\n");
 				BTreeNode *right_child = node->children[right];
 
 				if(!right_child->isLeaf) { // if children is not leaf, we shift the grandchildren of children 
@@ -371,7 +381,6 @@ void destroy(BTreeNode **root, BTreeNode *node, int key) {
 
 
 			} else if (childIndex > 0 ){
-				printf("selamat 7?\n");
 				BTreeNode *left_child = node->children[childIndex - 1];
 
 				if(!left_child->isLeaf) {

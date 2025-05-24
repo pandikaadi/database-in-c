@@ -70,6 +70,19 @@ void init_page(Page *page, uint32_t page_num, uint8_t is_leaf) {
     page->next = UINT32_MAX;
 }
 
+void free_page(FILE *file, Page *page) {
+    DBHeader header;
+    read_header(file, &header);
+
+    page->is_leaf = UINT8_MAX;
+    page->prev = UINT32_MAX;
+    page->next = header.free_list;
+    header.free_list = page->page_num;
+
+    write_page(file, page.page_num, page);
+    write_header(file, db_header);
+}
+
 void init_db(FILE *file) {
 
     if (!file) {
@@ -83,6 +96,7 @@ void init_db(FILE *file) {
         .page_size = PAGE_SIZE,
         .root_page = 0, // Initially, no root page
         .num_page = 1 // Initially, no root page
+        .free_list = UINT32_MAX // Initially, no root page
     };
 
     Page root;
@@ -117,15 +131,24 @@ void traverse(FILE *file, uint32_t page_num, int depth) {
 }
 
 uint32_t allocate_new_page(FILE *file) {
-   DBHeader header;
+    DBHeader header;
 
     // Read DB header
     fseek(file, 0, SEEK_SET);
     fread(&header, sizeof(DBHeader), 1, file);
+    uint32_t new_page_num; // Get next available page
 
-    uint32_t new_page_num = header.num_page; // Get next available page
-    header.num_page++; // Increment total pages
-
+    if (header.free_list != UINT32_MAX) {
+	// Reuse a page from the free list
+	Page free_page;
+	read_page(file, header.free_list, &free_page);
+	// Move free_list head to the next free page
+	header.free_list = free_page.next;
+	new_page_num = free_page.page_num;
+    } else {
+	new_page_num = header.num_page; // Get next available page
+	header.num_page++; // Increment total pages
+    }
     // Write updated header back to disk
     fseek(file, 0, SEEK_SET);
     fwrite(&header, sizeof(DBHeader), 1, file);
@@ -326,6 +349,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 		}
 		page.num_keys--;
 		// right child is now free, need to add free page list
+		free_page(file, &right_child);
 		write_page(file, page_num, &page);
 		write_page(file, child_page_num, &child_page);
 		borrowed = true;
@@ -370,6 +394,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 		page.num_keys--;
 
 		// child_page is now free, should add to freelist
+		free_page(file, &child_page);
 		write_page(file, page_num, &page);
 		write_page(file, page.children[i-1], &left_child);
 		borrowed = true;
@@ -381,6 +406,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 		// child_page is set as root
 		write_page(file, page.children[0], &child_page);
 		// page is now free, should add to freelist
+		free_page(file, &page);
 		DBHeader db_header;
 		read_header(file, &db_header);
 		db_header.root_page = page.children[0];
