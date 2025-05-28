@@ -161,20 +161,30 @@ void traverse(FILE *file, uint32_t page_num, int depth) {
     Page page;
     read_page(file, page_num, &page);
 
+
     if(page.is_leaf) {
 	Schema schema;
 	get_schema(&schema);
 
 	for (int i = 0; i < page.num_keys; i++) {
-	    printf("leaf Depth %d: Page %i| Parent Page = %d | index = %d | key = %d ", depth, page.page_num, page.parent_page_num, i, page.keys[i]);
+	    for(int k = 0; k < depth; k++) {
+		printf("==========");
+	    }
+	    printf(" leaf Depth %d: Page %i| Parent Page = %d | index = %d | key = %d ", depth, page.page_num, page.parent_page_num, i, page.keys[i]);
 	    print_row(page.values[i], &schema);
 	}
     } else {
 	traverse(file, page.children[0], depth + 1);
-	printf("internal Depth %d: Page %i| Parent Page %d |numkeys %i| index = %d | key %i \n", depth, page.page_num, page.parent_page_num, page.num_keys, 0, page.keys[0]);
+	for(int k = 0; k < depth; k++) {
+	    printf("==========");
+	}
+	printf(" internal Depth %d: Page %i| Parent Page %d |numkeys %i| index = %d | key %i \n", depth, page.page_num, page.parent_page_num, page.num_keys, 0, page.keys[0]);
 	for (int i = 1; i < page.num_keys; i++) {
 	    traverse(file, page.children[i], depth + 1);
-	    printf("internal Depth %d: Page %i| Parent Page %d |index = %d | key %i \n", depth, page.page_num, page.parent_page_num, i, page.keys[i]);
+	    for(int k = 0; k < depth; k++) {
+		printf("==========");
+	    }
+	    printf(" internal Depth %d: Page %i| Parent Page %d |index = %d | key %i \n", depth, page.page_num, page.parent_page_num, i, page.keys[i]);
 	}
 	traverse(file, page.children[page.num_keys], depth + 1);
 
@@ -258,7 +268,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 
     DBHeader head;
     read_header(file, &head);
-    traverse(file, head.root_page, 0);
+    /*traverse(file, head.root_page, 0);*/
 
     if(!page.is_leaf) {
 	// uint32_t child_page_num = // logic for finding child_index
@@ -286,7 +296,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 
 		if (right_child.num_keys > MINIMUM_KEYS) {
 		    if(!right_child.is_leaf) {
-			printf("========1======\n");
+			/*printf("========1======\n");*/
 
 			child_page.children[child_page.num_keys + 1] = right_child.children[0];
 			read_page(file, right_child.children[0], &moved_grandchild);
@@ -306,7 +316,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 			write_page(file, moved_grandchild.page_num, &moved_grandchild);
 
 		    } else {
-			printf("========2======\n");
+			/*printf("========2======\n");*/
 			// claim right values to borrower
 			memcpy(child_page.values[child_page.num_keys], right_child.values[0], MAX_ROW_SIZE);
 			// in this case right_child.keys[0] == node.keys[childIndex]
@@ -335,7 +345,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 
 		if(left_child.num_keys > MINIMUM_KEYS) {
 		    if(!left_child.is_leaf) {
-			printf("========3======\n");
+			/*printf("========3======\n");*/
 			child_page.children[j+1] = child_page.children[j];
 			while (j > 0) {
 			    child_page.keys[j] = child_page.keys[j-1];
@@ -353,14 +363,14 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 
 			write_page(file, moved_grandchild.page_num, &moved_grandchild);
 		    } else {
-			printf("========4======\n");
-			while (i > 0) {
-			    child_page.keys[i] = child_page.keys[i-1];
-			    memcpy(child_page.values[i], child_page.values[i-1], MAX_ROW_SIZE);
-			    i--;
+			/*printf("========4======\n");*/
+			while (j > 0) {
+			    child_page.keys[j] = child_page.keys[j-1];
+			    memcpy(child_page.values[j], child_page.values[j-1], MAX_ROW_SIZE);
+			    j--;
 			}
 			child_page.keys[0] = left_child.keys[left_child.num_keys-1];
-			memcpy(child_page.values[0], child_page.values[left_child.num_keys-1], MAX_ROW_SIZE);
+			memcpy(child_page.values[0], left_child.values[left_child.num_keys-1], MAX_ROW_SIZE);
 			page.keys[i-1] = child_page.keys[0];
 		    }
 		    left_child.num_keys--;
@@ -376,7 +386,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 	    if(!borrowed && i < page.num_keys) {
 		read_page(file, page.children[i+1], &right_child);
 		if(!right_child.is_leaf) {
-			printf("========5======\n");
+			/*printf("========5======\n");*/
 			child_page.keys[child_page.num_keys] = page.keys[i];
 			for(int j = 0; j < right_child.num_keys; j++) {
 			    read_page(file, right_child.children[j], &moved_grandchild);
@@ -393,7 +403,7 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 			child_page.num_keys += right_child.num_keys + 1;
 
 		} else {
-			printf("========6======\n");
+			/*printf("========6======\n");*/
 		    for (int j = 0; j < right_child.num_keys; j++) {
 			child_page.keys[child_page.num_keys + j] = right_child.keys[j];
 			memcpy(child_page.values[child_page.num_keys + j], right_child.values[j], MAX_ROW_SIZE);
@@ -419,11 +429,13 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 		write_page(file, child_page_num, &child_page);
 		borrowed = true;
 	    }
-	    if(!borrowed && i > 0) {
+	    if(!borrowed && i > 0) { // merge with left
 		read_page(file, page.children[i-1], &left_child);
+		// debug
+		read_header(file, &head);
+		// debug
 
 		if(!left_child.is_leaf) {
-			printf("========7======\n");
 			left_child.keys[left_child.num_keys] = page.keys[i-1];
 			for(int m = 0; m < child_page.num_keys; m++) {
 				left_child.keys[left_child.num_keys + 1 + m] = child_page.keys[m];
@@ -435,10 +447,9 @@ int destroy_v2(FILE *file, uint32_t page_num, uint32_t key) {
 			left_child.children[child_page.num_keys + left_child.num_keys + 1] = child_page.children[child_page.num_keys];
 			read_page(file, child_page.children[child_page.num_keys], &moved_grandchild);
 			moved_grandchild.parent_page_num = left_child.page_num; //update parent on merge
-			write_page(file, child_page.children[right_child.num_keys], &moved_grandchild);
+			write_page(file, child_page.children[child_page.num_keys], &moved_grandchild);
 			left_child.num_keys += child_page.num_keys + 1;
 		} else {
-			printf("========8======\n");
 			for(int k = 0; k < child_page.num_keys; k++) {
 				left_child.keys[left_child.num_keys + k] = child_page.keys[k];
 				memcpy(left_child.values[left_child.num_keys + k], child_page.values[k], MAX_ROW_SIZE);
@@ -788,15 +799,15 @@ int main () {
     4, 93, 80, 199, 73, 167, 160, 24, 27, 55, 11, 171, 187, 92, 70, 19, 83
 };
     population = sizeof(arr) / sizeof(arr[0]);
+    /*for(int i = 0; i < population; i++) {*/
     for(int i = 0; i < population; i++) {
 	void *values[2];
-	int id = arr[i];
-
-	/*do {*/
-	/*    id = rand() % population;*/
-	/*} while (used[id]);*/
+	int id ;
+	do {
+	    id = rand() % population;
+	} while (used[id]);
 	used[id] = 1;
-	insert_ord[i] = id;
+
 
 	values[0] = &id;
 
@@ -815,27 +826,57 @@ int main () {
     memset(used, 0, sizeof(int) * population);
     traverse(file, db_header.root_page, 0);
     printf("=======================DESTROY=================\n");
-    for(int i = 2; i < population; i++) {
-	printf("%d\n", insert_ord[i]);
-    }
-
-	/*   for(int i = 2; i < population - (population / 10); i++) {*/
-	/*read_header(file, &db_header);*/
-	/*int id;*/
-	/**/
-	/*do {*/
-	/*    id = rand() % population;*/
-	/*} while (used[id]);*/
-	/*used[id] = 1;*/
-	/*printf("current id: %d\n", id);*/
-	/**/
-	/*destroy_v2(file, db_header.root_page, id);*/
+	/*   for(int i = 2; i < population; i++) {*/
+	/*printf("%d\n", insert_ord[i]);*/
 	/*   }*/
+
+   /*for(int i = 0; i < population - (population / 10); i++) {*/
+    memset(used, 0, sizeof(int) * population);
+   for(int i = 0; i < population; i++) {
+	read_header(file, &db_header);
+	int id ;
+	do {
+	    id = rand() % population;
+	} while (used[id]);
+	used[id] = 1;
+	insert_ord[i] = id;
+
+	printf("======== current id: %d\n", id);
+	destroy_v2(file, db_header.root_page, id);
+	read_header(file, &db_header);
+	printf("=======================TRAVSTARTS AFTER DEST=================\n");
+	traverse(file, db_header.root_page, 0);
+	printf("=======================TRAVENDS AFTER DEST=================\n");
+	printf("======== current id: %d\n", id);
+   }
+    read_header(file, &db_header);
+
+    printf("=======================TRAVSTARTS AFTER DEST=================\n");
+    traverse(file, db_header.root_page, 0);
+    printf("=======================TRAVENDS AFTER DEST=================\n");
+    printf("=======================reinsert from blank=================\n");
+
+    for(int i = 0; i < 10; i++) {
+	void *values[2];
+	int id = i;
+
+
+	values[0] = &id;
+
+	char username[10];
+	snprintf(username, sizeof(username), "user%d", id);
+	values[1] = username;
+	insert_v2(file, values);
+    }
+    printf("=======================TRAVSTARTS AFTER DEST=================\n");
+    read_header(file, &db_header);
+    traverse(file, db_header.root_page, 0);
+    printf("=======================TRAVENDS AFTER DEST=================\n");
 
 
     /*traverse(file, db_header.root_page, 0);*/
-    range_key_query(file, 0, 50, 1);
-    range_key_query(file, 0, 50, 0);
+    /*range_key_query(file, 0, 50, 1);*/
+    /*range_key_query(file, 0, 50, 0);*/
     
     fclose(file);
     return 0;
